@@ -1,7 +1,8 @@
 from pathlib import Path
 import hashlib
 import boto3
-from typing import NamedTuple, List, Generator
+import botocore
+from typing import NamedTuple, Generator, Optional
 
 DEFAULT_CHUNKSIZE = 8 * 1024 * 1024
 DEFAULT_THRESHOLD = 8 * 1024 * 1024
@@ -45,18 +46,21 @@ def etag_local(path: Path, chunksize: int = DEFAULT_CHUNKSIZE,
         return hash.hexdigest()
 
 
-def etag_remote(bucket: str, key: str, endpoint: str = None) -> str:
+def etag_remote(bucket: str, key: str, endpoint: str = None) -> Optional[str]:
     """
     Returns the S3 etag for a file in S3
     :param bucket: The S3 bucket the file is contained within
     :param key: The path in the S3 bucket to the file of interest
-    :return: The etag of interest
+    :return: The etag of interest, or None, if the file doesn't exist
     """
     s3 = boto3.client('s3', endpoint_url=endpoint)
-    return s3.head_object(
-        Bucket=bucket,
-        Key=key
-    )['ETag'].replace('"', '')
+    try:
+        return s3.head_object(
+            Bucket=bucket,
+            Key=key
+        )['ETag'].replace('"', '')
+    except botocore.exceptions.ClientError:
+        return None
 
 
 class EtagComparison(NamedTuple):
