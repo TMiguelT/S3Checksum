@@ -31,7 +31,6 @@ def get_parser() -> argparse.ArgumentParser:
     local_parent = argparse.ArgumentParser(add_help=False)
     local_parent.add_argument('--path', type=pathlib_exists, required=True)
     local_parent.add_argument('--chunksize', '-c', type=human_filesize, default=etag.DEFAULT_CHUNKSIZE)
-    local_parent.add_argument('--multipart-threshold', '-m', type=human_filesize, default=etag.DEFAULT_THRESHOLD)
 
     remote_parent = argparse.ArgumentParser(add_help=False)
     remote_parent.add_argument('--bucket', required=True)
@@ -41,9 +40,12 @@ def get_parser() -> argparse.ArgumentParser:
     # These are the three concrete parsers
     remote = sub.add_parser('remote', parents=[remote_parent])
     local = sub.add_parser('local', parents=[local_parent])
+    local.add_argument('--multipart-threshold', '-m', type=human_filesize, default=etag.DEFAULT_THRESHOLD)
     compare = sub.add_parser('compare', parents=[remote_parent, local_parent], help='')
     compare.add_argument('--verbose', '-v', action='store_true', default=None,
                          help='Print all comparisons, even when successful')
+    compare.add_argument('--ignore-symlinks', '-i', action='store_true', default=None,
+                         help='Ignore symlinks when traversing the local tree')
 
     return parser
 
@@ -61,15 +63,14 @@ def entry(args):
         writer = csv.writer(sys.stdout, delimiter='\t')
         writer.writerow(['filepath', 'local_hash', 'remote_hash', 'equal'])
 
-        for comparison in etag.compare_file(local_args=dict(
-                path=args.path,
-                chunksize=args.chunksize,
-                multipart_threshold=args.multipart_threshold
-        ), remote_args=dict(
-            bucket=args.bucket,
-            key=args.key,
-            endpoint=args.endpoint
-        )):
+        for comparison in etag.compare_file(
+            local_path=args.path,
+            remote_bucket=args.bucket,
+            bucket_key=args.key,
+            ignore_symlinks=args.ignore_symlinks,
+            remote_endpoint=args.endpoint,
+            chunksize=args.chunksize,
+        ):
 
             if comparison.equal:
                 # If the hashes are fine, only report it if we're in verbose mode
