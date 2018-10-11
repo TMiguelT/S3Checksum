@@ -80,7 +80,9 @@ class EtagComparison(NamedTuple):
         return self.local == self.remote
 
 
-def compare_file(local_path: Path, remote_bucket: str, bucket_key: str, ignore_symlinks=False, remote_endpoint: str = None, chunksize: int = DEFAULT_CHUNKSIZE) -> Generator[EtagComparison, None, None]:
+def compare_file(local_path: Path, remote_bucket: str, bucket_key: str, ignore_symlinks=False,
+                 remote_endpoint: str = None, chunksize: int = DEFAULT_CHUNKSIZE) -> Generator[
+    EtagComparison, None, None]:
     """
     Compare the etags of a local and remote file or directory
     :return: Yields an iterable of EtagComparison objects, representing the comparison between all files of interest
@@ -107,10 +109,18 @@ def compare_file(local_path: Path, remote_bucket: str, bucket_key: str, ignore_s
         # If the path points to a file, just do a single comparison
 
         # First, download the hash of the remote file, and use this to determine if we're chunking
-        remote = etag_remote(remote_bucket, bucket_key, endpoint=remote_endpoint)
+        remote = etag_remote(
+            remote_bucket,
+            bucket_key,
+            endpoint=remote_endpoint
+        )
 
         # Next, hash the local file, chunking if the remote file was also chunked
-        local = etag_local(local_path, chunksize=chunksize, multipart_threshold=0 if '-' in remote else math.inf)
+        local = etag_local(
+            local_path,
+            chunksize=chunksize,
+            multipart_threshold=0 if remote is not None and '-' in remote else math.inf
+        )
 
         yield EtagComparison(
             remote=remote,
